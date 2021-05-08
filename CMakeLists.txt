@@ -5,4 +5,8 @@ set(CMAKE_CXX_STANDARD 17)
 file(GLOB SRC src/*.cpp)
 add_executable(server ${SRC})
 
+add_subdirectory(fmt/)
+
 target_include_directories(server PUBLIC include/)
+
+target_link_libraries(FMT)

@@ -9,6 +9,11 @@
 #include <string.h>
 #include <optional>
 #include <memory>
+#include <string>
+#include <iostream>
+#include <vector>
+#include <fmt/core.h>
+
 class Socket {
     int fd;
 public:
@@ -30,6 +35,17 @@ public:
     size_t read(char * buf, size_t len) {
         size_t valread = ::read(fd , buf, len);
         return valread;
+    }
+    void sendResponse(std::string content) {
+/*
+HTTP/1.1 200 OK
+Date: Mon, 27 Jul 2009 12:28:53 GMT
+Server: Apache/2.2.14 (Win32)
+Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT
+Content-Length: 88
+Content-Type: text/html
+Connection: Closed*/
+
     }
     ~Socket(){
         if(fd >= 0){
@@ -108,17 +124,47 @@ public:
     }
 };
 
+std::vector<std::string> split_str(std::string s, std::string delim) {
+    std::vector<std::string> vec_str;
+    auto start = 0U;
+    auto end = s.find(delim);
+    while (end != std::string::npos)
+    {
+        vec_str.push_back(s.substr(start, end - start));
+        start = end + delim.length();
+        end = s.find(delim, start);
+    }
+    return vec_str;
+}
+
+std::string get_path(char* _request) {
+    std::string request(_request);
+    std::vector<std::string> methods = {
+        "GET", "HEAD", "POST", "PUT",  "DELETE", "CONNECT", "OPTIONS", "TRACE"};
+    std::string first = request.substr(0, request.find("\n"));
+    for(auto& method: methods) {
+        auto pos = first.find(method);
+        if(pos != std::string::npos) {
+            auto path = split_str(first, " ")[1];
+            return path;
+        }
+    }
+    return "";
+}
 
 int main() {
     char const*hello = "Hello from server";
+    std::string server_root = ".";
     if(auto listener = TcpListener::bind(8000, 10)){
         while(true){
             if(auto socket_opt = listener->accept()) {
                 auto& socket = *socket_opt;
-                const int READ_SIZE = 100000;
-                char input[READ_SIZE];
-                socket.read(input, READ_SIZE);
-                printf("%s\n", input);
+                const size_t READ_SIZE = 100000;
+                char request[READ_SIZE+1];
+                socket.read(request, READ_SIZE);
+                printf("%s\n", request);
+                auto path = get_path(request);
+                fmt::print(path);
                 socket.write(hello, strlen(hello)+1);
             }
         }

@@ -9,4 +9,5 @@ add_subdirectory(fmt/)
 
 target_include_directories(server PUBLIC include/)
 
-target_link_libraries(FMT)
+target_link_libraries(server fmt)
+# target_link_libraries(server fmt::fmt)

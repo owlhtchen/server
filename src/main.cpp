@@ -13,6 +13,8 @@
 #include <iostream>
 #include <vector>
 #include <fmt/core.h>
+#include "httpStatus.h"
+#include "utils.h"
 
 class Socket {
     int fd;
@@ -36,16 +38,42 @@ public:
         size_t valread = ::read(fd , buf, len);
         return valread;
     }
-    void sendResponse(std::string content) {
-/*
-HTTP/1.1 200 OK
-Date: Mon, 27 Jul 2009 12:28:53 GMT
-Server: Apache/2.2.14 (Win32)
-Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT
-Content-Length: 88
-Content-Type: text/html
-Connection: Closed*/
-
+    void sendResponse(std::string content, std::string title, int statusCode=200) {
+        /*
+        HTTP/1.1 200 OK
+        Date: Mon, 27 Jul 2009 12:28:53 GMT
+        Server: Apache/2.2.14 (Win32)
+        Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT
+        Content-Length: 88
+        Content-Type: text/html; charset=iso-8859-1
+        Connection: Closed*/
+        auto currentTime = get_now();
+        auto httpBody = html_template(content, title);
+        std::string httpHeader = fmt::format(
+"HTTP/1.1 {} {}\r\n"
+// "Date: {}\r\n"
+// "Server: My Server/1.0\r\n"
+// "Last-Modified: {}\r\n"
+// "Content-Length: {}\r\n"
+"Content-Type: text/html\r\n"
+"Connection: Closed\r\n\r\n"
+            , 
+            statusCode,      
+            HttpStatus::reasonPhrase(statusCode)//,
+            // currentTime,
+            // currentTime,
+            // httpBody.length()
+        );
+        auto httpRespond = httpHeader + httpBody;
+        // std::cout << "replied: (" <<httpRespond.length() << std::endl;
+        // std::cout << httpRespond.c_str() << "\n";
+        // write(httpRespond.c_str(), httpRespond.length()+1);
+        // char const*hello = "Hello from server";
+        // char hello[100000] = "Hello from server";
+        char * cstr = new char[httpRespond.length()+1];
+        std::strcpy(cstr, httpRespond.c_str());
+        std::cout << cstr << std::endl;
+        write(cstr, strlen(cstr));
     }
     ~Socket(){
         if(fd >= 0){
@@ -124,34 +152,6 @@ public:
     }
 };
 
-std::vector<std::string> split_str(std::string s, std::string delim) {
-    std::vector<std::string> vec_str;
-    auto start = 0U;
-    auto end = s.find(delim);
-    while (end != std::string::npos)
-    {
-        vec_str.push_back(s.substr(start, end - start));
-        start = end + delim.length();
-        end = s.find(delim, start);
-    }
-    return vec_str;
-}
-
-std::string get_path(char* _request) {
-    std::string request(_request);
-    std::vector<std::string> methods = {
-        "GET", "HEAD", "POST", "PUT",  "DELETE", "CONNECT", "OPTIONS", "TRACE"};
-    std::string first = request.substr(0, request.find("\n"));
-    for(auto& method: methods) {
-        auto pos = first.find(method);
-        if(pos != std::string::npos) {
-            auto path = split_str(first, " ")[1];
-            return path;
-        }
-    }
-    return "";
-}
-
 int main() {
     char const*hello = "Hello from server";
     std::string server_root = ".";
@@ -164,8 +164,9 @@ int main() {
                 socket.read(request, READ_SIZE);
                 printf("%s\n", request);
                 auto path = get_path(request);
-                fmt::print(path);
-                socket.write(hello, strlen(hello)+1);
+                auto title = get_title_from_path(path);
+                socket.sendResponse("<p>Hello world</p>", title);
+                // socket.write(hello, strlen(hello)+1);
             }
         }
     }else{

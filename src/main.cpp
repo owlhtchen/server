@@ -15,6 +15,8 @@
 #include <fmt/core.h>
 #include "httpStatus.h"
 #include "utils.h"
+#include "config.h"
+#include <fstream>
 
 class Socket {
     int fd;
@@ -38,42 +40,31 @@ public:
         size_t valread = ::read(fd , buf, len);
         return valread;
     }
-    void sendResponse(std::string content, std::string title, int statusCode=200) {
-        /*
-        HTTP/1.1 200 OK
-        Date: Mon, 27 Jul 2009 12:28:53 GMT
-        Server: Apache/2.2.14 (Win32)
-        Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT
-        Content-Length: 88
-        Content-Type: text/html; charset=iso-8859-1
-        Connection: Closed*/
+    void sendResponse(std::string content, std::string title, std::string type="html", int statusCode=200) {
         auto currentTime = get_now();
-        auto httpBody = html_template(content, title);
-        std::string httpHeader = fmt::format(
-"HTTP/1.1 {} {}\r\n"
-// "Date: {}\r\n"
-// "Server: My Server/1.0\r\n"
-// "Last-Modified: {}\r\n"
-// "Content-Length: {}\r\n"
-"Content-Type: text/html\r\n"
-"Connection: Closed\r\n\r\n"
-            , 
-            statusCode,      
-            HttpStatus::reasonPhrase(statusCode)//,
-            // currentTime,
-            // currentTime,
-            // httpBody.length()
-        );
+        std::string httpBody;
+        if("html" ==  type) {
+            httpBody = html_template(content, title);
+        } else {
+            httpBody = content;
+        }
+        std::string httpHeader = get_html_header(type);
         auto httpRespond = httpHeader + httpBody;
-        // std::cout << "replied: (" <<httpRespond.length() << std::endl;
-        // std::cout << httpRespond.c_str() << "\n";
-        // write(httpRespond.c_str(), httpRespond.length()+1);
-        // char const*hello = "Hello from server";
-        // char hello[100000] = "Hello from server";
-        char * cstr = new char[httpRespond.length()+1];
-        std::strcpy(cstr, httpRespond.c_str());
-        std::cout << cstr << std::endl;
-        write(cstr, strlen(cstr));
+        std::cout << "RRReplied: (" <<httpRespond.length() << std::endl;
+        std::cout << httpRespond;
+        write(httpRespond.c_str(), httpRespond.length());
+        std::cout << std::endl;
+    }
+    void sendFile(std::string filepath, std::string title, int statusCode=200) {
+        auto content = read_file_content(filepath);
+        std::cout << "filepath: " << filepath << std::endl;
+        auto splitted = split_str(filepath, ".");
+        std::string type = "plain";
+        if(splitted.size() > 0) {
+            type = splitted.back();
+        }
+        std::cout << "type: " << type << std::endl;
+        sendResponse(content, title, type);
     }
     ~Socket(){
         if(fd >= 0){
@@ -154,7 +145,6 @@ public:
 
 int main() {
     char const*hello = "Hello from server";
-    std::string server_root = ".";
     if(auto listener = TcpListener::bind(8000, 10)){
         while(true){
             if(auto socket_opt = listener->accept()) {
@@ -162,10 +152,13 @@ int main() {
                 const size_t READ_SIZE = 100000;
                 char request[READ_SIZE+1];
                 socket.read(request, READ_SIZE);
-                printf("%s\n", request);
+                // printf("%s\n", request);
                 auto path = get_path(request);
                 auto title = get_title_from_path(path);
-                socket.sendResponse("<p>Hello world</p>", title);
+                std::cout << path << std::endl;
+                auto filepath = static_file_folder + path;
+                auto content = read_file_content(filepath);
+                socket.sendFile(filepath, title);
                 // socket.write(hello, strlen(hello)+1);
             }
         }

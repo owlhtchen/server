@@ -104,8 +104,8 @@ std::string read_file_content(std::string filepath) {
     std::ifstream ifs(filepath);
     std::string content( (std::istreambuf_iterator<char>(ifs) ),
                             (std::istreambuf_iterator<char>()) );
-    std::cout << "read from " << filepath << ": \n";
-    std::cout << content << std::endl;
+    // std::cout << "read from " << filepath << ": \n";
+    // std::cout << content << std::endl;
     return content;
 }
 

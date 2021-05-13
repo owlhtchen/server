@@ -40,20 +40,15 @@ public:
         size_t valread = ::read(fd , buf, len);
         return valread;
     }
-    void sendResponse(std::string content, std::string title, std::string type="html", int statusCode=200) {
-        auto currentTime = get_now();
-        std::string httpBody;
-        if("html" ==  type) {
-            httpBody = html_template(content, title);
-        } else {
-            httpBody = content;
-        }
+    void sendResponse(std::string httpBody, std::string title, std::string type="html", int statusCode=200) {
         std::string httpHeader = get_html_header(type);
         auto httpRespond = httpHeader + httpBody;
-        std::cout << "RRReplied: (" <<httpRespond.length() << std::endl;
-        std::cout << httpRespond;
         write(httpRespond.c_str(), httpRespond.length());
         std::cout << std::endl;
+    }
+    void sendContent(std::string content, std::string title, std::string type="html", int statusCode=200) {
+        std::string httpBody = html_template(content, title);
+        sendResponse(httpBody, title);
     }
     void sendFile(std::string filepath, std::string title, int statusCode=200) {
         auto content = read_file_content(filepath);
@@ -158,8 +153,8 @@ int main() {
                 std::cout << path << std::endl;
                 auto filepath = static_file_folder + path;
                 auto content = read_file_content(filepath);
-                socket.sendFile(filepath, title);
-                // socket.write(hello, strlen(hello)+1);
+                socket.sendFile(filepath, title);   // 2
+                // socket.sendContent("<p>hi</p>", title);  // 1
             }
         }
     }else{

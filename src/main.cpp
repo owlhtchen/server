@@ -13,6 +13,7 @@
 #include <iostream>
 #include <vector>
 #include <fmt/core.h>
+#include <string.h>
 #include "httpStatus.h"
 #include "utils.h"
 #include "config.h"
@@ -45,22 +46,25 @@ public:
         std::string httpHeader = get_html_header(type);
         auto httpRespond = httpHeader + httpBody;
         write(httpRespond.c_str(), httpRespond.length());
-        std::cout << std::endl;
+        // std::cout << std::endl;
     }
     void sendContent(std::string content, std::string title, std::string type="html", int statusCode=200) {
         std::string httpBody = html_template(content, title);
         sendResponse(httpBody, title);
     }
     void sendFile(std::string filepath, std::string title, int statusCode=200) {
-        auto content = read_file_content(filepath);
-        // std::cout << "filepath: " << filepath << std::endl;
-        auto splitted = split_str(filepath, ".");
-        std::string type = "plain";
-        if(splitted.size() > 0) {
-            type = splitted.back();
+        if(auto content = read_file_content(filepath)){
+            // std::cout << "filepath: " << filepath << std::endl;
+            auto splitted = split_str(filepath, ".");
+            std::string type = "plain";
+            if(splitted.size() > 0) {
+                type = splitted.back();
+            }
+            // std::cout << "type: " << type << std::endl;
+            sendResponse(*content, title, type);
+        } else{
+            sendContent("<p>404</p>", title, "html", 404); 
         }
-        // std::cout << "type: " << type << std::endl;
-        sendResponse(content, title, type);
     }
     ~Socket(){
         if(fd >= 0){
@@ -141,27 +145,38 @@ public:
         
     }
 };
+/*
 
+*/
 int main() {
     char const*hello = "Hello from server";
-    ThreadPool pool(std::thread::hardware_concurrency() * 2);
-    if(auto listener = TcpListener::bind(8000, 10)){
+    // ThreadPool pool(std::thread::hardware_concurrency() * 50);
+    ThreadPool pool(100);
+    if(auto listener = TcpListener::bind(8000, 50)){
         while(true){
             if(auto socket_opt = listener->accept()) {
                 std::shared_ptr<Socket> p_socket(new Socket(std::move(*socket_opt)));
                 pool.add([=]()mutable {
                     auto&socket = *p_socket;
                     // std::cout << "client socket fd: " << socket.getFd() << std::endl;
+                    // read: () -> std::vector<char>
                     const size_t READ_SIZE = 100000;
-                    char request[READ_SIZE+1];
-                    socket.read(request, READ_SIZE);
-                    // printf("request: %s\n", request);
-                    auto path = get_path(request);
+                    char request[READ_SIZE + 1];
+                    // memset(request, 0, READ_SIZE + 1);
+                    // int nbytes = 0;
+                    // while(nbytes == 0) {
+                    //     nbytes = socket.read(request, READ_SIZE);
+                    // }
+                    int nbytes = socket.read(request, READ_SIZE);
+                    if(nbytes == 0)
+                        return;
+                    // fmt::print("request {}: {}\n", nbytes, std::string_view(request, nbytes));
+                    auto path = get_path(std::string_view(request, nbytes));
                     auto title = get_title_from_path(path);
                     // std::cout << path << std::endl;
                     auto filepath = static_file_folder + path;
                     // fmt::print("filepath: {}\n", filepath);
-                    auto content = read_file_content(filepath);
+                    // auto content = read_file_content(filepath);
                     socket.sendFile(filepath, title);   // 2
                     // socket.sendContent("<p>hi</p>", title);  // 1
                 });

@@ -7,6 +7,7 @@
 #include <fmt/core.h>
 #include "httpStatus.h"
 #include <fstream>
+#include <string_view>
 
 inline std::vector<std::string> split_str(std::string s, std::string delim) {
     std::vector<std::string> vec_str;
@@ -30,7 +31,7 @@ inline std::string get_now() {
     return std::string(buf);
 }
 
-inline std::string get_path(char* _request) {
+inline std::string get_path(std::string_view _request) {
     std::string request(_request);
     std::vector<std::string> methods = {
         "GET", "HEAD", "POST", "PUT",  "DELETE", "CONNECT", "OPTIONS", "TRACE"};
@@ -88,7 +89,8 @@ inline std::string get_html_header(std::string type, int statusCode=200) {
     // "Last-Modified: {}\r\n"
     // "Content-Length: {}\r\n"
     "Content-Type: text/{}\r\n"
-    "Connection: Closed\r\n\r\n"
+    "Connection: Keep-Alive\r\n"
+    "\r\n"
     , 
     statusCode,      
     HttpStatus::reasonPhrase(statusCode),
@@ -100,13 +102,18 @@ inline std::string get_html_header(std::string type, int statusCode=200) {
     return httpHeader;
 }
 
-std::string read_file_content(std::string filepath) {
+// throw , ->std::optional<std::string>, -> "", -> (std::string, errcode), -> Union<std::string, ErrCode>/Result<std::string, ErrCOde>
+std::optional<std::string> read_file_content(std::string filepath) {
     std::ifstream ifs(filepath);
-    std::string content( (std::istreambuf_iterator<char>(ifs) ),
-                            (std::istreambuf_iterator<char>()) );
-    // std::cout << "read from " << filepath << ": \n";
-    // std::cout << content << std::endl;
-    return content;
+    if (ifs){
+        std::string content( (std::istreambuf_iterator<char>(ifs) ),
+                                (std::istreambuf_iterator<char>()) );
+        // std::cout << "read from " << filepath << ": \n";
+        // std::cout << content << std::endl;
+        return content;
+    }else{
+        return std::nullopt;
+    }
 }
 
 #endif

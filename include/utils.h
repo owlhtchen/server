@@ -49,14 +49,14 @@ inline std::string get_path(std::string_view _request) {
 inline std::string html_template(std::string content, std::string title) {
     std::string http = fmt::format(
     "<!DOCTYPE html>"
-    "<HMTL>"
-        "<HEAD>"
-            "<TITLE>{}</TITLE>"
-        "</HEAD>"
-        "<BODY>"
+    "<html lang=\"en\">"
+        "<head>"
+            "<title>{}</title>"
+        "</head>"
+        "<body>"
         "{}"
-        "</BODY>"
-    "</HTML>", title, content);
+        "</body>"
+    "</html>", title, content);
     return http;
 }
 

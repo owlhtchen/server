@@ -164,13 +164,13 @@ struct Request{
 struct Response {
     bool terminated;
     Socket& socket;
-    int status; // TODO
-    Response(Socket& _socket): terminated(false), socket(_socket) {};
-    void sendContent(std::string content, std::string title, std::string type="html", int statusCode=200) {
+    int statusCode;
+    Response(Socket& _socket): terminated(false), socket(_socket), statusCode(200) {};
+    void sendContent(std::string content, std::string title, std::string type="html") {
         terminated = true;
         socket.sendContent(content, title, type, statusCode);
     }
-    void sendFile(std::string filepath, std::string title, int statusCode=200) {
+    void sendFile(std::string filepath, std::string title) {
         terminated = true;
         socket.sendFile(filepath, title, statusCode);
     }    
@@ -277,9 +277,11 @@ public:
 };
 
 int main() {
-    char const*hello = "Hello from server";
     Application app;
-
+    auto isAdmin = [](std::string name) -> bool {
+        std::vector<std::string> admins = {"james", "mary"};
+        return std::find(admins.begin(), admins.end(), name) != admins.end();
+    };
     app.get("/user", [](Request req, Response res) {
         res.sendContent("<p>hi user</p>", "User Greeting");
     });
@@ -287,5 +289,23 @@ int main() {
         auto content = fmt::format("<p>book number: {}</p>.", req.getParam("bookid"));
         res.sendContent(content, "Book");
     });    
+    app.get("/admin/:name", 
+    [&](Request& req, Response& res) {
+        auto name = req.getParam("name");
+        std::transform(name.begin(), name.end(), name.begin(),
+            [](unsigned char c){ return std::tolower(c); });
+        req.setParam("isAdmin", isAdmin(name) ? "true" : "false");
+    }, 
+    [](Request& req, Response& res) {
+        if(req.getParam("isAdmin") == "true") {
+            auto content = fmt::format("<p>hi admin: {}</p>.", req.getParam("name"));
+            res.sendContent(content, "Welcome");
+        } else {
+            res.statusCode = 401;
+            auto content = "<p>Unauthorized</p>.";
+            res.sendContent(content, "Unauthorized");
+        }
+    }    
+    );
     app.listen(8000);
 }
